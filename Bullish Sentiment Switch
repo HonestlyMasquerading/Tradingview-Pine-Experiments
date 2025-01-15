@@ -1,0 +1,70 @@
+//@version=5
+strategy("Bullish Sentiment Switch", overlay=true)
+
+// Define the input variables
+var float profit_target_percent = 1.5
+var float stop_loss_percent = 0.75
+
+// Define the conditions for the entry and exit
+short_period = 10
+long_period = 30
+
+bullish_sentiment = false
+increased_volatility = false
+
+// Calculate the short and long exponential moving averages
+short_ema = 0.0
+long_ema = 0.0
+multiplier = 2 / (short_period + 1)
+for i = 0 to short_period - 1
+    if i == 0
+        short_ema := close[i]
+    else
+        short_ema := (close[i] - short_ema) * multiplier + short_ema
+
+multiplier = 2 / (long_period + 1)
+for i = 0 to long_period - 1
+    if i == 0
+        long_ema := close[i]
+    else
+        long_ema := (close[i] - long_ema) * multiplier + long_ema
+
+// Calculate the standard deviation
+short_std = 0.0
+long_std = 0.0
+for i = 0 to short_period - 1
+    deviation = close[i] - short_ema
+    short_std := short_std + deviation * deviation
+short_std := sqrt(short_std / short_period)
+
+for i = 0 to long_period - 1
+    deviation = close[i] - long_ema
+    long_std := long_std + deviation * deviation
+long_std := sqrt(long_std / long_period)
+
+// Check for bullish sentiment
+if short_ema > long_ema and short_std > long_std
+    bullish_sentiment := true
+
+// Check for increased volatility
+short_std_dev = 0.0
+long_std_dev = 0.0
+for i = 0 to 9
+    deviation = close[i] - close[i+1]
+    short_std_dev := short_std_dev + deviation * deviation
+short_std_dev := sqrt(short_std_dev / 9)
+
+for i = 0 to 19
+    deviation = close[i] - close[i+1]
+    long_std_dev := long_std_dev + deviation * deviation
+long_std_dev := sqrt(long_std_dev / 19)
+
+if short_std_dev > long_std_dev
+    increased_volatility := true
+
+// Enter the trade when the conditions are met
+if bullish_sentiment and increased_volatility
+    strategy.entry("Buy", strategy.long)
+
+// Set the profit target and stop loss for the trade
+strategy.exit("Exit", "Buy", profit=close * (1 + profit_target_percent / 100), stop=close * (1 - stop_loss_percent / 100))
