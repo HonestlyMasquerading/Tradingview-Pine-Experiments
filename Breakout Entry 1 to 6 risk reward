@@ -1,0 +1,38 @@
+//@version=5
+strategy("Minervini", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=1)
+
+// Function to check for 3 consecutive candles
+check_consecutive_candles() =>
+    is_red = close[3] < open[3] and close[2] < open[2] and close[1] < open[1]
+    is_green = close[3] > open[3] and close[2] > open[2] and close[1] > open[1]
+
+    is_next_lower = is_red and close < close[1]
+    is_next_higher = is_green and close > close[1]
+
+    is_red_sequence = is_red and is_next_lower
+    is_green_sequence = is_green and is_next_higher
+
+    [is_red_sequence, is_green_sequence]
+
+// Detect patterns
+[red_sequence, green_sequence] = check_consecutive_candles()
+
+// Logic for trade entry based on two consecutive signals
+var float last_green_signal = na
+var float last_red_signal = na
+
+if (green_sequence)
+    if (not na(last_green_signal) and (bar_index - last_green_signal) >= 4 and (na(last_red_signal) or last_red_signal < last_green_signal))
+        // Calculate stop loss and target for long trade
+        stop_loss = low[1] // Wick of the last candle before the green signal
+        risk = 2*(close - stop_loss)
+        take_profit = close + risk * 6
+
+        strategy.entry("Long", strategy.long)
+        strategy.exit("Target", from_entry="Long", limit=take_profit, stop=risk)
+    last_green_signal := bar_index
+
+
+// Plot triangle indicators for visualization (as a flag alternative)
+plotshape(series=red_sequence, location=location.abovebar, color=color.red, style=shape.triangledown, title="Red Sequence Detected")
+plotshape(series=green_sequence, location=location.belowbar, color=color.green, style=shape.triangleup, title="Green Sequence Detected")
